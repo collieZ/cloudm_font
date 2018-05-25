@@ -2,6 +2,7 @@
 #include "motor_Contral.h"
 #include "usart3.h"
 #include "usart.h"	
+#include "delay.h"
 
 /*==========================================================   
  *函数名称：MotorInit()
@@ -16,11 +17,15 @@
 	 
 	GPIO_InitTypeDef GPIO_InitStructure;
  	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB|RCC_APB2Periph_GPIOA,ENABLE);//使能PORTB,PORTE时钟
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+	GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable,ENABLE);	// 关闭PB4 JTAG功能 复用为普通io口
+
 	
 	GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_7|GPIO_Pin_6|GPIO_Pin_5|GPIO_Pin_4;//电机控制输出  1~4
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; //设置成推挽输出
 	GPIO_Init(GPIOB, &GPIO_InitStructure);//初始化GPIOB 7-4
+	GPIO_ResetBits(GPIOB,GPIO_Pin_4);
 
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7|GPIO_Pin_6|GPIO_Pin_5|GPIO_Pin_4;//电机控制输出  5~8
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -32,7 +37,7 @@
  	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC,ENABLE);//使能PORTE,PORTE时钟
 	
 	GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_1;		//外部中断读取电机io返回信号 PC1
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD; //设置成下拉输入
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU; //设置成下拉输入
 	GPIO_Init(GPIOC, &GPIO_InitStructure);//初始化GPIOC1  
  }
  
@@ -79,7 +84,7 @@ void EXTI_SetupNVIC(void){
 	NVIC_InitTypeDef NVIC_InitStructure;
 	 
 	NVIC_InitStructure.NVIC_IRQChannel = EXTI1_IRQn;			//使能外部中断通道
-  	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x02;	//抢占优先级2， 
+  	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x01;	//抢占优先级2， 
   	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x02;					//子优先级2
   	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;								//使能外部中断通道
   	NVIC_Init(&NVIC_InitStructure);  
@@ -104,10 +109,35 @@ void ExitSetup(void){
 
 
 //外部中断1服务程序  PC1
+int counter = 0;
 
-void EXTI0_IRQHandler(void){
+u8 PushDrugs[5][2];
+u32 pushDrugsNumbers;
+u32 drugsNum_flag = 66;  // 出货数量的标志 
+u16 getDrugsMsg_flag = 1;  // 药品选择标志位  选择一次后等待出货完毕才进行下一次选择
 
-	u3_printf("ok");
-	EXTI_ClearITPendingBit(EXTI_Line1); //清除LINE1上的中断标志位  
+void EXTI1_IRQHandler(void){
 	
+	delay_ms(3);
+	if(PCin(1) == 0){
+		drugsNum_flag--;
+		if(drugsNum_flag <= 0) {
+				
+				drugsNum_flag = 66;
+				GPIOA->BRR = 0x00F0;		//关闭所有电机     io寄存器操作参考自：https://blog.csdn.net/stephenbruce/article/details/48392769    http://blog.sina.com.cn/s/blog_640029b30100i33h.html
+				GPIOB->BRR = 0X00F0;
+				getDrugsMsg_flag = 0;
+		}
+	}
+	
+//	if(PCin(1) == 0) {
+//		counter++;
+//		printf("ok");
+//		GPIOA->BRR = 0x00F0;		//关闭所有电机     io寄存器操作参考自：https://blog.csdn.net/stephenbruce/article/details/48392769    http://blog.sina.com.cn/s/blog_640029b30100i33h.html
+//		GPIOB->BRR = 0X00F0;
+//	}
+	
+	EXTI_ClearITPendingBit(EXTI_Line1); //清除LINE1上的中断标志位  
 }
+
+

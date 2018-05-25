@@ -33,3 +33,4 @@
 ..\obj\motor_contral.o: ..\HARDWARE\USART3\usart3.h
 ..\obj\motor_contral.o: ..\SYSTEM\usart\usart.h
 ..\obj\motor_contral.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+..\obj\motor_contral.o: ..\SYSTEM\delay\delay.h
